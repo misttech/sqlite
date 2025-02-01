@@ -1674,9 +1674,15 @@ struct sqlite3 {
     Pgno newTnum;               /* Rootpage of table being initialized */
     u8 iDb;                     /* Which db file is being initialized */
     u8 busy;                    /* TRUE if currently initializing */
+#if SQLITE_ZIG_COMPAT
+    unsigned orphanTrigger;     /* Last statement is orphaned TEMP trigger */
+    unsigned imposterTable;     /* Building an imposter table */
+    unsigned reopenMemdb;       /* ATTACH is really a reopen using MemDB */
+#else
     unsigned orphanTrigger : 1; /* Last statement is orphaned TEMP trigger */
     unsigned imposterTable : 1; /* Building an imposter table */
     unsigned reopenMemdb : 1;   /* ATTACH is really a reopen using MemDB */
+#endif
     const char **azInit;        /* "type", "name", and "tbl_name" columns */
   } init;
   int nVdbeActive;              /* Number of VDBEs currently running */
@@ -3180,6 +3186,17 @@ struct ExprList {
     char *zEName;           /* Token associated with this expression */
     struct {
       u8 sortFlags;           /* Mask of KEYINFO_ORDER_* flags */
+#ifdef SQLITE_ZIG_COMPAT
+      unsigned eEName;        /* Meaning of zEName */
+      unsigned done;          /* Indicates when processing is finished */
+      unsigned reusable;      /* Constant expression is reusable */
+      unsigned bSorterRef;    /* Defer evaluation until after sorting */
+      unsigned bNulls;        /* True if explicit "NULLS FIRST/LAST" */
+      unsigned bUsed;         /* This column used in a SF_NestedFrom subquery */
+      unsigned bUsingTerm;    /* Term from the USING clause of a NestedFrom */
+      unsigned bNoExpand;     /* Term is an auxiliary in NestedFrom and should
+                              ** not be expanded by "*" in parent queries */
+#else
       unsigned eEName :2;     /* Meaning of zEName */
       unsigned done :1;       /* Indicates when processing is finished */
       unsigned reusable :1;   /* Constant expression is reusable */
@@ -3189,6 +3206,7 @@ struct ExprList {
       unsigned bUsingTerm:1;  /* Term from the USING clause of a NestedFrom */
       unsigned bNoExpand: 1;  /* Term is an auxiliary in NestedFrom and should
                               ** not be expanded by "*" in parent queries */
+#endif
     } fg;
     union {
       struct {             /* Used by any ExprList other than Parse.pConsExpr */
@@ -3292,6 +3310,26 @@ struct SrcItem {
   Table *pSTab;     /* Table object for zName. Mnemonic: Srcitem-TABle */
   struct {
     u8 jointype;      /* Type of join between this table and the previous */
+#ifdef SQLITE_ZIG_COMPAT
+    unsigned notIndexed;       /* True if there is a NOT INDEXED clause */
+    unsigned isIndexedBy;      /* True if there is an INDEXED BY clause */
+    unsigned isSubquery;       /* True if this term is a subquery */
+    unsigned isTabFunc;        /* True if table-valued-function syntax */
+    unsigned isCorrelated;     /* True if sub-query is correlated */
+    unsigned isMaterialized;   /* This is a materialized view */
+    unsigned viaCoroutine;     /* Implemented as a co-routine */
+    unsigned isRecursive;      /* True for recursive reference in WITH */
+    unsigned fromDDL;          /* Comes from sqlite_schema */
+    unsigned isCte;            /* This is a CTE */
+    unsigned notCte;           /* This item may not match a CTE */
+    unsigned isUsing;          /* u3.pUsing is valid */
+    unsigned isOn;             /* u3.pOn was once valid and non-NULL */
+    unsigned isSynthUsing;     /* u3.pUsing is synthesized from NATURAL */
+    unsigned isNestedFrom;     /* pSelect is a SF_NestedFrom subquery */
+    unsigned rowidUsed;        /* The ROWID of this table is referenced */
+    unsigned fixedSchema;      /* Uses u4.pSchema, not u4.zDatabase */
+    unsigned hadSchema;        /* Had u4.zDatabase before u4.pSchema */
+#else
     unsigned notIndexed :1;    /* True if there is a NOT INDEXED clause */
     unsigned isIndexedBy :1;   /* True if there is an INDEXED BY clause */
     unsigned isSubquery :1;    /* True if this term is a subquery */
@@ -3310,6 +3348,7 @@ struct SrcItem {
     unsigned rowidUsed :1;     /* The ROWID of this table is referenced */
     unsigned fixedSchema :1;   /* Uses u4.pSchema, not u4.zDatabase */
     unsigned hadSchema :1;     /* Had u4.zDatabase before u4.pSchema */
+#endif
   } fg;
   int iCursor;      /* The VDBE cursor number used to access this table */
   Bitmask colUsed;  /* Bit N set if column N used. Details above for N>62 */
